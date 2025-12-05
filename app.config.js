@@ -2,7 +2,7 @@ export default ({ config }) => {
   return {
     ...config,
     name: "SolarTech",
-    slug: "gbd-solar",
+    slug: "solartech",
     version: "1.0.0",
     orientation: "portrait",
     userInterfaceStyle: "automatic",
@@ -55,7 +55,7 @@ export default ({ config }) => {
       ...config.extra,
       apiUrl: process.env.API_URL ?? 'https://gbd-solar-backend-production.up.railway.app/api',
       eas: {
-        projectId: "61c8127e-c796-4b8d-a294-38e9ad96091b"
+        projectId: "8c5ef59e-4ced-4c8e-a230-bd709c0bbee6"
       }
     },
   };
