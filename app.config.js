@@ -55,7 +55,7 @@ export default ({ config }) => {
       ...config.extra,
       apiUrl: process.env.API_URL ?? 'https://gbd-solar-backend-production.up.railway.app/api',
       eas: {
-        projectId: "61c8127e-0000-0000-0000-000000000000"
+        projectId: "61c8127e-c796-4b8d-a294-38e9ad96091b"
       }
     },
   };
