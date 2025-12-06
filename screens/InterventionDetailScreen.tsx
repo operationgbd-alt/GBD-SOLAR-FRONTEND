@@ -825,8 +825,8 @@ export default function InterventionDetailScreen() {
         </View>
       ) : null}
 
-      {/* SEZIONE 4: CARICA FOTO E DOCUMENTI (Solo Tecnico) */}
-      {isTecnico && !isInterventionCompleted ? (
+      {/* SEZIONE 4: CARICA FOTO E DOCUMENTI (Solo Tecnico in corso) */}
+      {isTecnico && !isInterventionCompleted && intervention.status === 'in_corso' ? (
         <View style={[styles.section, { backgroundColor: colors.backgroundSecondary }]}>
           <View style={styles.sectionHeader}>
             <Feather name="camera" size={20} color={colors.primary} />
@@ -918,8 +918,8 @@ export default function InterventionDetailScreen() {
         </View>
       ) : null}
 
-      {/* Anteprima foto per DITTA e MASTER */}
-      {(isDitta || isMaster) && serverPhotos.length > 0 ? (
+      {/* Anteprima foto per tutti (DITTA, MASTER, TECNICO con intervento completato) */}
+      {((isDitta || isMaster) || (isTecnico && isInterventionCompleted)) && serverPhotos.length > 0 ? (
         <View style={[styles.section, { backgroundColor: colors.backgroundSecondary }]}>
           <View style={styles.sectionHeader}>
             <Feather name="image" size={20} color={colors.primary} />
@@ -938,8 +938,8 @@ export default function InterventionDetailScreen() {
         </View>
       ) : null}
 
-      {/* SEZIONE 5: REGISTRA POSIZIONE (Solo Tecnico) */}
-      {isTecnico && !isInterventionCompleted ? (
+      {/* SEZIONE 5: REGISTRA POSIZIONE (Solo Tecnico in corso) */}
+      {isTecnico && !isInterventionCompleted && intervention.status === 'in_corso' ? (
         <View style={[styles.section, { backgroundColor: colors.backgroundSecondary }]}>
           <View style={styles.sectionHeader}>
             <Feather name="map-pin" size={20} color={colors.primary} />
@@ -1004,8 +1004,8 @@ export default function InterventionDetailScreen() {
         </View>
       ) : null}
 
-      {/* Visualizza posizione per DITTA/MASTER */}
-      {(isDitta || isMaster) && intervention.latitude && intervention.longitude ? (
+      {/* Visualizza posizione per tutti (DITTA, MASTER, TECNICO con intervento completato) */}
+      {((isDitta || isMaster) || (isTecnico && isInterventionCompleted)) && intervention.latitude && intervention.longitude ? (
         <View style={[styles.section, { backgroundColor: colors.backgroundSecondary }]}>
           <View style={styles.sectionHeader}>
             <Feather name="map-pin" size={20} color={colors.primary} />
