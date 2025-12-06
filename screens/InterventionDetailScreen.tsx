@@ -22,6 +22,7 @@ import * as MailComposer from 'expo-mail-composer';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Location from 'expo-location';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useAuth } from '../store/AuthContext';
@@ -55,9 +56,11 @@ export default function InterventionDetailScreen() {
   const [sendingReport, setSendingReport] = useState(false);
   
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
-  const [appointmentDate, setAppointmentDate] = useState('');
-  const [appointmentTime, setAppointmentTime] = useState('');
+  const [appointmentDate, setAppointmentDate] = useState<Date>(new Date());
+  const [appointmentTime, setAppointmentTime] = useState<Date>(new Date());
   const [appointmentNotes, setAppointmentNotes] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [interventionPhotos, setInterventionPhotos] = useState<{uri: string, caption: string}[]>([]);
   const [interventionNotes, setInterventionNotes] = useState('');
@@ -334,15 +337,47 @@ export default function InterventionDetailScreen() {
     }
   };
 
-  const handleScheduleAppointment = async () => {
-    if (!appointmentDate) {
-      Alert.alert('Errore', 'Inserisci una data per l\'appuntamento');
-      return;
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
     }
-    
+    if (selectedDate) {
+      setAppointmentDate(selectedDate);
+    }
+  };
+
+  const handleTimeChange = (event: DateTimePickerEvent, selectedTime?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+    }
+    if (selectedTime) {
+      setAppointmentTime(selectedTime);
+    }
+  };
+
+  const formatDate = (date: Date): string => {
+    return date.toLocaleDateString('it-IT', { 
+      weekday: 'long', 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric' 
+    });
+  };
+
+  const formatTime = (date: Date): string => {
+    return date.toLocaleTimeString('it-IT', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  const handleScheduleAppointment = async () => {
     setUpdatingStatus(true);
     try {
-      const scheduledDateTime = `${appointmentDate}${appointmentTime ? ' ' + appointmentTime : ''}`;
+      const combinedDateTime = new Date(appointmentDate);
+      combinedDateTime.setHours(appointmentTime.getHours(), appointmentTime.getMinutes());
+      
+      const scheduledDateTime = combinedDateTime.toISOString();
       console.log('[APPOINTMENT] Sending request:', { status: 'appuntamento_fissato', scheduledDate: scheduledDateTime });
       
       const response = await api.put<any>(`/interventions/${interventionId}`, {
@@ -355,8 +390,8 @@ export default function InterventionDetailScreen() {
       
       if (response.success || response.data || response.id) {
         setShowAppointmentModal(false);
-        setAppointmentDate('');
-        setAppointmentTime('');
+        setAppointmentDate(new Date());
+        setAppointmentTime(new Date());
         setAppointmentNotes('');
         
         await loadIntervention();
@@ -1283,24 +1318,67 @@ export default function InterventionDetailScreen() {
             
             <View style={styles.appointmentForm}>
               <Text style={[styles.inputLabel, { color: colors.text }]}>Data *</Text>
-              <TextInput
-                style={[styles.appointmentInput, { backgroundColor: colors.backgroundDefault, borderColor: colors.border, color: colors.text }]}
-                placeholder="es. 15/12/2025"
-                placeholderTextColor={colors.textSecondary}
-                value={appointmentDate}
-                onChangeText={setAppointmentDate}
-              />
+              <TouchableOpacity
+                style={[styles.datePickerButton, { backgroundColor: colors.backgroundDefault, borderColor: colors.border }]}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Feather name="calendar" size={20} color={colors.primary} />
+                <Text style={[styles.datePickerText, { color: colors.text }]}>
+                  {formatDate(appointmentDate)}
+                </Text>
+              </TouchableOpacity>
               
-              <Text style={[styles.inputLabel, { color: colors.text }]}>Ora (opzionale)</Text>
-              <TextInput
-                style={[styles.appointmentInput, { backgroundColor: colors.backgroundDefault, borderColor: colors.border, color: colors.text }]}
-                placeholder="es. 10:00"
-                placeholderTextColor={colors.textSecondary}
-                value={appointmentTime}
-                onChangeText={setAppointmentTime}
-              />
+              {showDatePicker && (
+                <DateTimePicker
+                  value={appointmentDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleDateChange}
+                  minimumDate={new Date()}
+                  locale="it-IT"
+                />
+              )}
               
-              <Text style={[styles.inputLabel, { color: colors.text }]}>Note (opzionale)</Text>
+              {Platform.OS === 'ios' && showDatePicker && (
+                <TouchableOpacity
+                  style={styles.datePickerDoneButton}
+                  onPress={() => setShowDatePicker(false)}
+                >
+                  <Text style={styles.datePickerDoneText}>Fatto</Text>
+                </TouchableOpacity>
+              )}
+              
+              <Text style={[styles.inputLabel, { color: colors.text, marginTop: 16 }]}>Ora</Text>
+              <TouchableOpacity
+                style={[styles.datePickerButton, { backgroundColor: colors.backgroundDefault, borderColor: colors.border }]}
+                onPress={() => setShowTimePicker(true)}
+              >
+                <Feather name="clock" size={20} color={colors.primary} />
+                <Text style={[styles.datePickerText, { color: colors.text }]}>
+                  {formatTime(appointmentTime)}
+                </Text>
+              </TouchableOpacity>
+              
+              {showTimePicker && (
+                <DateTimePicker
+                  value={appointmentTime}
+                  mode="time"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleTimeChange}
+                  locale="it-IT"
+                />
+              )}
+              
+              {Platform.OS === 'ios' && showTimePicker && (
+                <TouchableOpacity
+                  style={styles.datePickerDoneButton}
+                  onPress={() => setShowTimePicker(false)}
+                >
+                  <Text style={styles.datePickerDoneText}>Fatto</Text>
+                </TouchableOpacity>
+              )}
+              
+              <Text style={[styles.inputLabel, { color: colors.text, marginTop: 16 }]}>Note (opzionale)</Text>
               <TextInput
                 style={[styles.appointmentInput, styles.appointmentTextArea, { backgroundColor: colors.backgroundDefault, borderColor: colors.border, color: colors.text }]}
                 placeholder="Aggiungi note..."
@@ -1789,6 +1867,29 @@ const styles = StyleSheet.create({
   appointmentTextArea: {
     textAlignVertical: 'top',
     minHeight: 80,
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+    gap: 12,
+  },
+  datePickerText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  datePickerDoneButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginTop: 8,
+  },
+  datePickerDoneText: {
+    color: '#0066CC',
+    fontSize: 16,
+    fontWeight: '600',
   },
   confirmButton: {
     flexDirection: 'row',
