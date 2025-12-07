@@ -1,9 +1,10 @@
-import React from "react";
-import { StyleSheet, View, Pressable } from "react-native";
+import React, { useState, useMemo } from "react";
+import { StyleSheet, View, Pressable, Modal, ScrollView, TouchableOpacity } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation, CommonActions } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import { Calendar, LocaleConfig } from "react-native-calendars";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
@@ -11,7 +12,16 @@ import { useApp } from "@/store/AppContext";
 import { useAuth } from "@/store/AuthContext";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { DashboardStackParamList } from "@/navigation/DashboardStackNavigator";
-import { InterventionStatus } from "@/types";
+import { InterventionStatus, Intervention } from "@/types";
+
+LocaleConfig.locales['it'] = {
+  monthNames: ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'],
+  monthNamesShort: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'],
+  dayNames: ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'],
+  dayNamesShort: ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'],
+  today: 'Oggi'
+};
+LocaleConfig.defaultLocale = 'it';
 
 type DashboardNavProp = NativeStackNavigationProp<DashboardStackParamList, "Dashboard">;
 
@@ -36,6 +46,64 @@ export default function DashboardScreen() {
   const { user } = useAuth();
   const { interventions, appointments, getGlobalStats, unassignedInterventions, users } = useApp();
   const insets = useSafeAreaInsets();
+
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const markedDates = useMemo(() => {
+    const marks: { [key: string]: { marked: boolean; dotColor: string; selected?: boolean; selectedColor?: string } } = {};
+    
+    interventions.forEach((intervention) => {
+      if (intervention.scheduledDate) {
+        try {
+          const date = new Date(intervention.scheduledDate);
+          const dateStr = date.toISOString().split('T')[0];
+          const statusColor = STATUS_CONFIG[intervention.status]?.color || '#007AFF';
+          
+          marks[dateStr] = {
+            marked: true,
+            dotColor: statusColor,
+            ...(selectedDate === dateStr ? { selected: true, selectedColor: theme.primary } : {}),
+          };
+        } catch (e) {}
+      }
+    });
+    
+    if (selectedDate && !marks[selectedDate]) {
+      marks[selectedDate] = {
+        marked: false,
+        dotColor: theme.primary,
+        selected: true,
+        selectedColor: theme.primary,
+      };
+    }
+    
+    return marks;
+  }, [interventions, selectedDate, theme.primary]);
+
+  const selectedDateInterventions = useMemo(() => {
+    if (!selectedDate) return [];
+    
+    return interventions.filter((intervention) => {
+      if (!intervention.scheduledDate) return false;
+      try {
+        const date = new Date(intervention.scheduledDate);
+        const dateStr = date.toISOString().split('T')[0];
+        return dateStr === selectedDate;
+      } catch {
+        return false;
+      }
+    });
+  }, [interventions, selectedDate]);
+
+  const formatTime = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
 
   const userRole = user?.role?.toUpperCase();
   const isMaster = userRole?.toUpperCase() === 'MASTER';
@@ -546,13 +614,7 @@ export default function DashboardScreen() {
         <View style={styles.sectionHeader}>
           <ThemedText type="h3">Prossimi Appuntamenti</ThemedText>
           <Pressable
-            onPress={() => {
-              const nav = navigation.getParent() as any;
-              nav?.navigate("InterventionsTab", {
-                screen: "InterventionsList",
-                params: { filterStatus: "appuntamento_fissato" },
-              });
-            }}
+            onPress={() => setCalendarVisible(true)}
             style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
           >
             <Feather name="calendar" size={22} color={theme.primary} />
@@ -677,6 +739,95 @@ export default function DashboardScreen() {
           <Feather name="plus" size={24} color="#FFFFFF" />
         </Pressable>
       ) : null}
+
+      <Modal
+        visible={calendarVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setCalendarVisible(false)}
+      >
+        <View style={styles.calendarModalOverlay}>
+          <View style={[styles.calendarModalContent, { backgroundColor: theme.backgroundDefault }]}>
+            <View style={styles.calendarModalHeader}>
+              <ThemedText type="h3">Calendario Interventi</ThemedText>
+              <TouchableOpacity onPress={() => setCalendarVisible(false)}>
+                <Feather name="x" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <Calendar
+              markedDates={markedDates}
+              onDayPress={(day: { dateString: string }) => {
+                setSelectedDate(day.dateString);
+              }}
+              theme={{
+                backgroundColor: theme.backgroundDefault,
+                calendarBackground: theme.backgroundDefault,
+                textSectionTitleColor: theme.textSecondary,
+                selectedDayBackgroundColor: theme.primary,
+                selectedDayTextColor: '#ffffff',
+                todayTextColor: theme.primary,
+                dayTextColor: theme.text,
+                textDisabledColor: theme.textTertiary,
+                arrowColor: theme.primary,
+                monthTextColor: theme.text,
+                textDayFontWeight: '400',
+                textMonthFontWeight: '600',
+                textDayHeaderFontWeight: '500',
+              }}
+              firstDay={1}
+            />
+            
+            {selectedDate && (
+              <View style={styles.calendarInterventionsList}>
+                <ThemedText type="h4" style={{ marginBottom: Spacing.sm }}>
+                  Interventi del {new Date(selectedDate).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </ThemedText>
+                
+                {selectedDateInterventions.length === 0 ? (
+                  <View style={[styles.calendarEmptyDay, { backgroundColor: theme.backgroundDefault }]}>
+                    <Feather name="calendar" size={24} color={theme.textTertiary} />
+                    <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: Spacing.xs }}>
+                      Nessun intervento in questa data
+                    </ThemedText>
+                  </View>
+                ) : (
+                  <ScrollView style={{ maxHeight: 200 }}>
+                    {selectedDateInterventions.map((intervention) => {
+                      const statusConfig = STATUS_CONFIG[intervention.status];
+                      return (
+                        <TouchableOpacity
+                          key={intervention.id}
+                          style={[styles.calendarInterventionCard, { backgroundColor: theme.backgroundDefault }]}
+                          onPress={() => {
+                            setCalendarVisible(false);
+                            const nav = navigation.getParent() as any;
+                            nav?.navigate("InterventionsTab", {
+                              screen: "InterventionDetail",
+                              params: { interventionId: intervention.id },
+                            });
+                          }}
+                        >
+                          <View style={[styles.calendarStatusDot, { backgroundColor: statusConfig?.color || theme.primary }]} />
+                          <View style={styles.calendarInterventionInfo}>
+                            <ThemedText type="body" style={{ fontWeight: '600' }}>
+                              {intervention.client?.name || intervention.clientName}
+                            </ThemedText>
+                            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                              {intervention.scheduledDate ? formatTime(intervention.scheduledDate) : ''} - {statusConfig?.label || intervention.status}
+                            </ThemedText>
+                          </View>
+                          <Feather name="chevron-right" size={18} color={theme.textTertiary} />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScreenScrollView>
   );
 }
@@ -873,5 +1024,49 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  calendarModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  calendarModalContent: {
+    borderTopLeftRadius: BorderRadius.xl,
+    borderTopRightRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    maxHeight: '90%',
+  },
+  calendarModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  calendarInterventionsList: {
+    marginTop: Spacing.lg,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  calendarEmptyDay: {
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+  },
+  calendarInterventionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.sm,
+  },
+  calendarStatusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: Spacing.sm,
+  },
+  calendarInterventionInfo: {
+    flex: 1,
   },
 });
