@@ -321,6 +321,13 @@ export const api = {
   },
 
   getTechniciansLocations: async () => {
-    return apiRequest<{ success: boolean; data: any[] }>('/users/technicians/locations');
+    return apiRequest<{ success: boolean; data: any[] }>('/locations/technicians');
+  },
+
+  updateMyLocation: async (latitude: number, longitude: number, accuracy?: number) => {
+    return apiRequest<{ success: boolean; message: string }>('/locations/update', {
+      method: 'POST',
+      body: JSON.stringify({ latitude, longitude, accuracy }),
+    });
   },
 };

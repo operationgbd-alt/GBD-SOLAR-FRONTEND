@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useRef } from 'react';
-import { View, StyleSheet, Platform, Pressable, ScrollView, Linking } from 'react-native';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { View, StyleSheet, Platform, Pressable, ScrollView, Linking, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { useApp } from '@/store/AppContext';
@@ -11,6 +11,7 @@ import { User } from '@/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { TechnicianMap } from '@/components/TechnicianMap';
+import { api } from '@/services/api';
 
 const ITALY_REGION = {
   latitude: 42.5,
@@ -43,22 +44,61 @@ function isValidCoordinate(lat: unknown, lng: unknown): boolean {
   return true;
 }
 
+const POLLING_INTERVAL = 30000;
+
 export function TechnicianMapScreen() {
   const { theme } = useTheme();
   const { users } = useApp();
   const [selectedTech, setSelectedTech] = useState<User | null>(null);
+  const [technicianLocations, setTechnicianLocations] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const mapRef = useRef<any>(null);
-  
-  const allTechnicians = useMemo(() => {
+
+  const fetchLocations = useCallback(async () => {
     try {
-      return (users || []).filter(u => u && u.role?.toUpperCase() === 'TECNICO');
-    } catch (e) {
-      console.warn('[TechnicianMapScreen] Error filtering technicians:', e);
-      return [];
+      console.log('[MAP] Fetching technician locations...');
+      const response = await api.getTechniciansLocations();
+      if (response.success && response.data) {
+        console.log('[MAP] Received', response.data.length, 'technician locations');
+        setTechnicianLocations(response.data);
+        setLastUpdate(new Date());
+      }
+    } catch (error) {
+      console.error('[MAP] Error fetching locations:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [users]);
+  }, []);
+
+  useEffect(() => {
+    fetchLocations();
+    const interval = setInterval(fetchLocations, POLLING_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchLocations]);
+
+  const allTechnicians = useMemo(() => {
+    const baseUsers = (users || []).filter(u => u && u.role?.toUpperCase() === 'TECNICO');
+    
+    return baseUsers.map(user => {
+      const locationData = technicianLocations.find(t => t.id === user.id);
+      if (locationData && locationData.lastLocation) {
+        return {
+          ...user,
+          lastLocation: {
+            latitude: locationData.lastLocation.latitude,
+            longitude: locationData.lastLocation.longitude,
+            accuracy: locationData.lastLocation.accuracy,
+            timestamp: locationData.lastLocation.updatedAt,
+            isOnline: locationData.isOnline,
+          },
+        };
+      }
+      return user;
+    });
+  }, [users, technicianLocations]);
 
   const techniciansWithValidLocation = useMemo(() => {
     try {
@@ -184,9 +224,24 @@ export function TechnicianMapScreen() {
       
       <ThemedView style={[styles.header, { backgroundColor: theme.backgroundDefault }]}>
         <Feather name="map-pin" size={24} color={theme.primary} />
-        <ThemedText type="h3" style={{ marginLeft: Spacing.md }}>
-          Posizione Tecnici
-        </ThemedText>
+        <View style={{ flex: 1, marginLeft: Spacing.md }}>
+          <ThemedText type="h3">Posizione Tecnici</ThemedText>
+          {lastUpdate && (
+            <ThemedText type="caption" style={{ color: theme.textSecondary }}>
+              Aggiornato: {lastUpdate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+            </ThemedText>
+          )}
+        </View>
+        <Pressable 
+          onPress={fetchLocations}
+          style={[styles.refreshButton, { backgroundColor: theme.primaryLight }]}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color={theme.primary} />
+          ) : (
+            <Feather name="refresh-cw" size={18} color={theme.primary} />
+          )}
+        </Pressable>
       </ThemedView>
 
       <TechnicianMap
@@ -503,5 +558,12 @@ const styles = StyleSheet.create({
   },
   noGpsSection: {
     marginTop: Spacing.lg,
+  },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

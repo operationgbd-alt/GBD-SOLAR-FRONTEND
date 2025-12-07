@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 
 import RootNavigator from "@/navigation/RootNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { LocationTracker } from "@/components/LocationTracker";
 import { AppProvider } from "@/store/AppContext";
 import { AuthProvider } from "@/store/AuthContext";
 
@@ -19,6 +20,7 @@ export default function App() {
           <KeyboardProvider>
             <AuthProvider>
               <AppProvider>
+                <LocationTracker />
                 <NavigationContainer>
                   <RootNavigator />
                 </NavigationContainer>
