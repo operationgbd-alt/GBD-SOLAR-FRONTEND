@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { Platform, AppState } from 'react-native';
+import { Platform, AppState, AppStateStatus } from 'react-native';
 import * as Location from 'expo-location';
 import { api } from '@/services/api';
 import { useAuth } from '@/store/AuthContext';
@@ -9,7 +9,8 @@ const LOCATION_UPDATE_INTERVAL = 30000;
 export function useLocationTracking() {
   const { user, hasValidToken } = useAuth();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const appStateRef = useRef(AppState.currentState);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const isTrackingRef = useRef(false);
 
   const updateLocation = useCallback(async () => {
     if (!hasValidToken || user?.role !== 'tecnico') {
@@ -43,6 +44,11 @@ export function useLocationTracking() {
       return;
     }
 
+    if (isTrackingRef.current) {
+      console.log('[LOCATION] Tracking già attivo');
+      return;
+    }
+
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -51,6 +57,7 @@ export function useLocationTracking() {
       }
 
       console.log('[LOCATION] Avvio tracking ogni', LOCATION_UPDATE_INTERVAL / 1000, 'secondi');
+      isTrackingRef.current = true;
 
       await updateLocation();
 
@@ -61,6 +68,7 @@ export function useLocationTracking() {
       intervalRef.current = setInterval(updateLocation, LOCATION_UPDATE_INTERVAL);
     } catch (error) {
       console.error('[LOCATION] Errore avvio tracking:', error);
+      isTrackingRef.current = false;
     }
   }, [hasValidToken, user?.role, updateLocation]);
 
@@ -68,20 +76,25 @@ export function useLocationTracking() {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
-      console.log('[LOCATION] Tracking fermato');
     }
+    isTrackingRef.current = false;
+    console.log('[LOCATION] Tracking fermato');
   }, []);
 
   useEffect(() => {
-    const handleAppStateChange = (nextAppState: string) => {
-      if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
-        console.log('[LOCATION] App tornata in foreground - riprendo tracking');
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      const previousState = appStateRef.current;
+      appStateRef.current = nextAppState;
+
+      console.log('[LOCATION] AppState:', previousState, '->', nextAppState);
+
+      if (nextAppState === 'active' && hasValidToken && user?.role === 'tecnico') {
+        console.log('[LOCATION] App attiva - avvio/riprendo tracking');
         startTracking();
-      } else if (nextAppState.match(/inactive|background/)) {
+      } else if (nextAppState === 'background' || nextAppState === 'inactive') {
         console.log('[LOCATION] App in background - fermo tracking');
         stopTracking();
       }
-      appStateRef.current = nextAppState as any;
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
@@ -89,10 +102,10 @@ export function useLocationTracking() {
     return () => {
       subscription.remove();
     };
-  }, [startTracking, stopTracking]);
+  }, [startTracking, stopTracking, hasValidToken, user?.role]);
 
   useEffect(() => {
-    if (hasValidToken && user?.role === 'tecnico') {
+    if (hasValidToken && user?.role === 'tecnico' && appStateRef.current === 'active') {
       startTracking();
     } else {
       stopTracking();

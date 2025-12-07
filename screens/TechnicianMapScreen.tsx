@@ -87,6 +87,7 @@ export function TechnicianMapScreen() {
       if (locationData && locationData.lastLocation) {
         return {
           ...user,
+          isOnline: locationData.isOnline,
           lastLocation: {
             latitude: locationData.lastLocation.latitude,
             longitude: locationData.lastLocation.longitude,
@@ -96,7 +97,7 @@ export function TechnicianMapScreen() {
           },
         };
       }
-      return user;
+      return { ...user, isOnline: false };
     });
   }, [users, technicianLocations]);
 
