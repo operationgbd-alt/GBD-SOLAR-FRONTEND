@@ -17,7 +17,8 @@
         "buildType": "apk"
       },
       "env": {
-        "API_URL": "https://gbd-solar-backend-production.up.railway.app/api"
+        "API_URL": "https://gbd-solar-backend-production.up.railway.app/api",
+        "GOOGLE_API_KEY": ""
       }
     },
     "production": {
