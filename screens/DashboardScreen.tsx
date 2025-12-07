@@ -83,6 +83,38 @@ export default function DashboardScreen() {
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .slice(0, 5);
 
+  const upcomingAppointments = [...interventions]
+    .filter(i => i.status === 'appuntamento_fissato' && i.scheduledDate)
+    .sort((a, b) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime())
+    .slice(0, 5);
+
+  const formatAppointmentDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const isTomorrow = date.toDateString() === tomorrow.toDateString();
+      
+      if (isToday) {
+        return `Oggi, ${date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`;
+      }
+      if (isTomorrow) {
+        return `Domani, ${date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`;
+      }
+      return date.toLocaleDateString('it-IT', { 
+        weekday: 'short', 
+        day: 'numeric', 
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
   const getUserInitials = (name: string) => {
     return name.split(" ").map((n: string) => n[0]).join("");
   };
@@ -512,42 +544,45 @@ export default function DashboardScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <ThemedText type="h3">Appuntamenti Oggi</ThemedText>
+          <ThemedText type="h3">Prossimi Appuntamenti</ThemedText>
           <Pressable
-            onPress={() => navigation.navigate("Calendar")}
+            onPress={() => {
+              const nav = navigation.getParent() as any;
+              nav?.navigate("InterventionsTab", {
+                screen: "InterventionsList",
+                params: { filterStatus: "appuntamento_fissato" },
+              });
+            }}
             style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
           >
             <Feather name="calendar" size={22} color={theme.primary} />
           </Pressable>
         </View>
 
-        {todayAppointments.length === 0 ? (
+        {upcomingAppointments.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: theme.backgroundDefault }]}>
             <Feather name="calendar" size={32} color={theme.textTertiary} />
             <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: Spacing.sm }}>
-              Nessun appuntamento per oggi
+              Nessun appuntamento programmato
             </ThemedText>
           </View>
         ) : (
-          todayAppointments.map((appointment) => {
-            const intervention = interventions.find(i => i.id === appointment.interventionId);
-            const priorityColor = intervention ? PRIORITY_CONFIG[intervention.priority]?.color : theme.primary;
+          upcomingAppointments.map((intervention) => {
+            const priorityColor = PRIORITY_CONFIG[intervention.priority]?.color || theme.primary;
             
             return (
               <Pressable
-                key={appointment.id}
+                key={intervention.id}
                 style={({ pressed }) => [
                   styles.appointmentCard,
                   { backgroundColor: theme.backgroundDefault, opacity: pressed ? 0.8 : 1 },
                 ]}
                 onPress={() => {
-                  if (intervention) {
-                    const nav = navigation.getParent() as any;
-                    nav?.navigate("InterventionsTab", {
-                      screen: "InterventionDetail",
-                      params: { interventionId: intervention.id },
-                    });
-                  }
+                  const nav = navigation.getParent() as any;
+                  nav?.navigate("InterventionsTab", {
+                    screen: "InterventionDetail",
+                    params: { interventionId: intervention.id },
+                  });
                 }}
               >
                 <View
@@ -556,16 +591,15 @@ export default function DashboardScreen() {
                     { backgroundColor: priorityColor + "20" },
                   ]}
                 >
-                  <Feather name="briefcase" size={16} color={priorityColor} />
+                  <Feather name="calendar" size={16} color={priorityColor} />
                 </View>
                 <View style={styles.appointmentInfo}>
-                  <ThemedText type="h4">{appointment.clientName}</ThemedText>
+                  <ThemedText type="h4">{intervention.client?.name || intervention.clientName}</ThemedText>
                   <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                    {new Date(appointment.date).toLocaleTimeString("it-IT", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}{" "}
-                    - {appointment.address}
+                    {formatAppointmentDate(intervention.scheduledDate!)}
+                  </ThemedText>
+                  <ThemedText type="caption" style={{ color: theme.textTertiary }}>
+                    {intervention.client?.city || intervention.clientCity || ''}
                   </ThemedText>
                 </View>
                 <Feather name="chevron-right" size={20} color={theme.textTertiary} />

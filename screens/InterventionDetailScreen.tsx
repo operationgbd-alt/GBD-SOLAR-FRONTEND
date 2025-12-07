@@ -56,6 +56,7 @@ export default function InterventionDetailScreen() {
   const [sendingReport, setSendingReport] = useState(false);
   
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [isEditingAppointment, setIsEditingAppointment] = useState(false);
   const [appointmentDate, setAppointmentDate] = useState<Date>(new Date());
   const [appointmentTime, setAppointmentTime] = useState<Date>(new Date());
   const [appointmentNotes, setAppointmentNotes] = useState('');
@@ -377,6 +378,46 @@ export default function InterventionDetailScreen() {
     });
   };
 
+  const formatScheduledDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('it-IT', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const openEditAppointmentModal = () => {
+    if (intervention?.scheduledDate) {
+      try {
+        const existingDate = new Date(intervention.scheduledDate);
+        setAppointmentDate(existingDate);
+        setAppointmentTime(existingDate);
+      } catch {
+        setAppointmentDate(new Date());
+        setAppointmentTime(new Date());
+      }
+    }
+    setAppointmentNotes(intervention?.notes || '');
+    setIsEditingAppointment(true);
+    setShowAppointmentModal(true);
+  };
+
+  const openNewAppointmentModal = () => {
+    setAppointmentDate(new Date());
+    setAppointmentTime(new Date());
+    setAppointmentNotes('');
+    setIsEditingAppointment(false);
+    setShowAppointmentModal(true);
+  };
+
   const handleScheduleAppointment = async () => {
     setUpdatingStatus(true);
     try {
@@ -399,11 +440,12 @@ export default function InterventionDetailScreen() {
         setAppointmentDate(new Date());
         setAppointmentTime(new Date());
         setAppointmentNotes('');
+        setIsEditingAppointment(false);
         
         await loadIntervention();
         await refreshFromServer();
         
-        Alert.alert('Successo', 'Appuntamento fissato con successo!');
+        Alert.alert('Successo', isEditingAppointment ? 'Appuntamento modificato con successo!' : 'Appuntamento fissato con successo!');
       } else {
         console.error('[APPOINTMENT] Error response:', response);
         Alert.alert('Errore', response.error || 'Impossibile fissare l\'appuntamento');
@@ -785,10 +827,20 @@ export default function InterventionDetailScreen() {
 
         {intervention.scheduledDate ? (
           <View style={[styles.scheduledInfo, { borderColor: colors.border }]}>
-            <Feather name="calendar" size={18} color="#2196F3" />
-            <Text style={[styles.scheduledText, { color: colors.text }]}>
-              Appuntamento: {intervention.scheduledDate}
-            </Text>
+            <View style={styles.scheduledInfoLeft}>
+              <Feather name="calendar" size={18} color="#2196F3" />
+              <Text style={[styles.scheduledText, { color: colors.text }]}>
+                {formatScheduledDate(intervention.scheduledDate)}
+              </Text>
+            </View>
+            {isTecnico && intervention.status === 'appuntamento_fissato' ? (
+              <TouchableOpacity
+                style={styles.editAppointmentButton}
+                onPress={openEditAppointmentModal}
+              >
+                <Feather name="edit-2" size={16} color="#2196F3" />
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : null}
 
@@ -870,7 +922,7 @@ export default function InterventionDetailScreen() {
           {intervention.status === 'assegnato' ? (
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: '#2196F3' }]}
-              onPress={() => setShowAppointmentModal(true)}
+              onPress={openNewAppointmentModal}
               disabled={updatingStatus}
             >
               {updatingStatus ? (
@@ -1351,8 +1403,10 @@ export default function InterventionDetailScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.backgroundSecondary }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Fissa Appuntamento</Text>
-              <TouchableOpacity onPress={() => setShowAppointmentModal(false)}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {isEditingAppointment ? 'Modifica Appuntamento' : 'Fissa Appuntamento'}
+              </Text>
+              <TouchableOpacity onPress={() => { setShowAppointmentModal(false); setIsEditingAppointment(false); }}>
                 <Feather name="x" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -1544,14 +1598,26 @@ const styles = StyleSheet.create({
   scheduledInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 12,
     padding: 12,
     borderWidth: 1,
     borderRadius: 8,
+  },
+  scheduledInfoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
     gap: 8,
   },
   scheduledText: {
     fontSize: 14,
+    flex: 1,
+  },
+  editAppointmentButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: 'rgba(33, 150, 243, 0.1)',
   },
   technicianInfo: {
     marginTop: 12,

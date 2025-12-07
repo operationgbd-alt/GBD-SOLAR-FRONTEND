@@ -40,6 +40,12 @@ export interface Intervention {
   
   client: ClientInfo;
   
+  clientName?: string;
+  clientAddress?: string;
+  clientCity?: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  scheduledDate?: string;
   companyId: string | null;
   companyName: string | null;
   
