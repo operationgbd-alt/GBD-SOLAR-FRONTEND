@@ -41,7 +41,8 @@ async function apiRequest<T>(
 
     return data;
   } catch (error) {
-    console.error('[API] Error:', error);
+    const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+    console.error('[API] Error:', errorMessage);
     throw error;
   }
 }
@@ -242,15 +243,48 @@ export const api = {
   },
 
   uploadInterventionPhoto: async (interventionId: string, photoData: string, caption?: string) => {
-    return apiRequest<{ success: boolean; data: any }>('/photos', {
-      method: 'POST',
-      body: JSON.stringify({
-        intervention_id: interventionId,
-        photo_data: photoData,
-        mime_type: 'image/jpeg',
-        description: caption,
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    
+    try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      };
+      
+      console.log('[UPLOAD API] Starting upload for intervention:', interventionId, 'photoData length:', photoData.length);
+      
+      const response = await fetch(`${API_BASE_URL}/photos`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          intervention_id: interventionId,
+          photo_data: photoData,
+          mime_type: 'image/jpeg',
+          description: caption,
+        }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      const data = await response.json();
+      console.log('[UPLOAD API] Response status:', response.status, 'data:', JSON.stringify(data));
+      
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+      
+      return data;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        console.error('[UPLOAD API] Request timeout after 60s');
+        throw new Error('Timeout: foto troppo grande o connessione lenta');
+      }
+      console.error('[UPLOAD API] Error:', error.message);
+      throw error;
+    }
   },
 
   saveInterventionGps: async (interventionId: string, latitude: number, longitude: number) => {

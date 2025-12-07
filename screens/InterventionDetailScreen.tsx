@@ -126,6 +126,7 @@ export default function InterventionDetailScreen() {
       
       if (rawData) {
         const interventionData = mapInterventionData(rawData);
+        console.log('[DETAIL] Mapped intervention - lat:', interventionData.latitude, 'lon:', interventionData.longitude, 'status:', interventionData.status);
         setIntervention(interventionData);
         setInterventionNotes(interventionData.notes || '');
       } else {
@@ -142,14 +143,19 @@ export default function InterventionDetailScreen() {
   const loadPhotos = useCallback(async () => {
     try {
       setLoadingPhotos(true);
+      console.log('[PHOTOS] Loading photos for intervention:', interventionId);
       const response = await api.getInterventionPhotos(interventionId);
+      console.log('[PHOTOS] Response:', JSON.stringify(response));
       if (response.success && response.data) {
+        console.log('[PHOTOS] Loaded', response.data.length, 'photos');
         setServerPhotos(response.data);
       } else {
+        console.log('[PHOTOS] No photos found');
         setServerPhotos([]);
       }
     } catch (error) {
-      console.error('Error loading photos:', error);
+      const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('[PHOTOS] Error loading photos:', errorMsg);
       setServerPhotos([]);
     } finally {
       setLoadingPhotos(false);
@@ -469,8 +475,10 @@ export default function InterventionDetailScreen() {
 
       const { latitude, longitude } = location.coords;
       console.log('[GPS] Posizione acquisita:', latitude, longitude);
+      console.log('[GPS] Saving to intervention:', interventionId);
 
       const response = await api.saveInterventionGps(interventionId, latitude, longitude);
+      console.log('[GPS] Save response:', JSON.stringify(response));
       
       if (response.success) {
         setIntervention((prev: any) => ({
@@ -496,8 +504,8 @@ export default function InterventionDetailScreen() {
       console.log('[COMPRESS] Starting compression for:', uri);
       const manipResult = await ImageManipulator.manipulateAsync(
         uri,
-        [{ resize: { width: 1200 } }],
-        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+        [{ resize: { width: 800 } }],
+        { compress: 0.4, format: ImageManipulator.SaveFormat.JPEG }
       );
       console.log('[COMPRESS] Compressed image URI:', manipResult.uri);
       return manipResult.uri;
@@ -557,17 +565,50 @@ export default function InterventionDetailScreen() {
     }
 
     setUpdatingStatus(true);
+    let uploadedCount = 0;
+    const errors: string[] = [];
+    
     try {
-      for (const photo of interventionPhotos) {
-        const base64 = await FileSystem.readAsStringAsync(photo.uri, { encoding: FileSystem.EncodingType.Base64 });
-        await api.uploadInterventionPhoto(interventionId, `data:image/jpeg;base64,${base64}`, photo.caption || 'Foto intervento');
+      for (let i = 0; i < interventionPhotos.length; i++) {
+        const photo = interventionPhotos[i];
+        try {
+          console.log(`[UPLOAD] Processing photo ${i + 1}/${interventionPhotos.length}, URI:`, photo.uri);
+          
+          const base64 = await FileSystem.readAsStringAsync(photo.uri, { encoding: FileSystem.EncodingType.Base64 });
+          console.log('[UPLOAD] Base64 length:', base64.length);
+          
+          if (!base64 || base64.length < 100) {
+            errors.push(`Foto ${i + 1}: file vuoto o non leggibile`);
+            continue;
+          }
+          
+          console.log('[UPLOAD] Uploading to intervention:', interventionId);
+          const response = await api.uploadInterventionPhoto(interventionId, base64, photo.caption || 'Foto intervento');
+          console.log('[UPLOAD] Response:', JSON.stringify(response));
+          
+          if (response.success) {
+            uploadedCount++;
+          } else {
+            errors.push(`Foto ${i + 1}: ${(response as any).error || 'errore sconosciuto'}`);
+          }
+        } catch (photoError: any) {
+          console.error(`[UPLOAD] Error on photo ${i + 1}:`, photoError?.message);
+          errors.push(`Foto ${i + 1}: ${photoError?.message || 'errore'}`);
+        }
       }
-      Alert.alert('Successo', `${interventionPhotos.length} foto caricate con successo!`);
-      setInterventionPhotos([]);
-      loadPhotos();
+      
+      if (uploadedCount > 0) {
+        Alert.alert('Successo', `${uploadedCount}/${interventionPhotos.length} foto caricate!`);
+        setInterventionPhotos([]);
+        loadPhotos();
+      } else if (errors.length > 0) {
+        Alert.alert('Errore Upload', errors.join('\n'));
+      } else {
+        Alert.alert('Errore', 'Nessuna foto caricata.');
+      }
     } catch (error: any) {
-      console.error('Error uploading photos:', error);
-      Alert.alert('Errore', 'Errore durante il caricamento delle foto');
+      console.error('[UPLOAD] General error:', error?.message || JSON.stringify(error));
+      Alert.alert('Errore', `${error?.message || 'Errore durante il caricamento'}`);
     } finally {
       setUpdatingStatus(false);
     }

@@ -246,36 +246,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCompaniesData([]);
       }
 
-      const usersResponse = await api.getUsers();
-      const usersArray = Array.isArray(usersResponse)
-        ? usersResponse
-        : (usersResponse.data || []);
-      
-      if (usersArray.length > 0) {
-        const serverUsers: User[] = usersArray.map((u: any) => ({
-          id: String(u.id),
-          username: u.username,
-          role: u.role,
-          name: u.name || u.username,
-          email: u.email || '',
-          phone: u.phone || '',
-          companyId: u.company_id ? String(u.company_id) : null,
-          companyName: u.companyName || null,
-          createdAt: u.created_at ? new Date(u.created_at).getTime() : Date.now(),
-        }));
-        console.log('[REFRESH] Loaded', serverUsers.length, 'users from server');
-        setUsersData(serverUsers);
+      const userRole = user?.role?.toLowerCase();
+      if (userRole === 'master' || userRole === 'ditta') {
+        try {
+          const usersResponse = await api.getUsers();
+          const usersArray = Array.isArray(usersResponse)
+            ? usersResponse
+            : (usersResponse.data || []);
+          
+          if (usersArray.length > 0) {
+            const serverUsers: User[] = usersArray.map((u: any) => ({
+              id: String(u.id),
+              username: u.username,
+              role: u.role,
+              name: u.name || u.username,
+              email: u.email || '',
+              phone: u.phone || '',
+              companyId: u.company_id ? String(u.company_id) : null,
+              companyName: u.companyName || null,
+              createdAt: u.created_at ? new Date(u.created_at).getTime() : Date.now(),
+            }));
+            console.log('[REFRESH] Loaded', serverUsers.length, 'users from server');
+            setUsersData(serverUsers);
+          } else {
+            console.log('[REFRESH] No users found on server');
+            setUsersData([]);
+          }
+        } catch (error) {
+          console.log('[REFRESH] Error loading users (non-critical):', error instanceof Error ? error.message : error);
+        }
       } else {
-        console.log('[REFRESH] No users found on server');
-        setUsersData([]);
+        console.log('[REFRESH] Skipping users load (tecnico role)');
       }
     } catch (error) {
-      console.error('[REFRESH] Error:', error);
+      const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('[REFRESH] Error:', errorMsg);
     } finally {
       setIsRefreshing(false);
       console.log('[REFRESH] Sync complete');
     }
-  }, [hasValidToken]);
+  }, [hasValidToken, user]);
 
   useEffect(() => {
     if (!user || !hasValidToken || !isDataLoaded) return;
