@@ -785,7 +785,7 @@ export default function InterventionDetailScreen() {
   return (
     <ScrollView 
       style={[styles.container, { backgroundColor: colors.backgroundDefault }]}
-      contentContainerStyle={{ paddingTop: headerHeight + Spacing.md, paddingBottom: 40 + insets.bottom, paddingHorizontal: Spacing.md }}
+      contentContainerStyle={{ paddingTop: headerHeight + Spacing.md, paddingBottom: insets.bottom + Spacing['2xl'] + 60, paddingHorizontal: Spacing.md }}
     >
       <InlineBackButton />
       

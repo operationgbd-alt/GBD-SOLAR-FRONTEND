@@ -219,7 +219,7 @@ export function TechnicianMapScreen() {
   return (
     <ScrollView 
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
-      contentContainerStyle={{ paddingTop: headerHeight + Spacing.md, paddingBottom: insets.bottom + Spacing.xl, paddingHorizontal: Spacing.md }}
+      contentContainerStyle={{ paddingTop: headerHeight + Spacing.md, paddingBottom: insets.bottom + Spacing['2xl'] + 40, paddingHorizontal: Spacing.md }}
     >
       <InlineBackButton />
       
