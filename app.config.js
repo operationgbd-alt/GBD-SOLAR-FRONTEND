@@ -20,7 +20,12 @@ export default ({ config }) => {
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
-      ]
+      ],
+      config: {
+        googleMaps: {
+          apiKey: process.env.GOOGLE_API_KEY
+        }
+      }
     },
     
     web: {
