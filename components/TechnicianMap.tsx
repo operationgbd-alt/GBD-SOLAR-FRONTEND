@@ -7,7 +7,7 @@ import {
   Platform,
   Pressable,
 } from 'react-native';
-import MapView, { Marker, Callout } from 'react-native-maps';
+import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import ClusteredMapView from 'react-native-map-clustering';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../constants/theme';
@@ -181,14 +181,12 @@ export function TechnicianMap({
     );
   }, [colors.primary]);
 
-  if (Platform.OS === 'web' || Platform.OS === 'android') {
+  if (Platform.OS === 'web') {
     return (
       <View style={[styles.webNotice, { backgroundColor: colors.primaryLight }]}>
         <Feather name="info" size={16} color={colors.primary} />
         <Text style={[styles.webNoticeText, { color: colors.primary }]}>
-          {Platform.OS === 'android' 
-            ? 'La mappa richiede configurazione Google Maps. Usa la lista tecnici qui sotto.'
-            : 'La mappa interattiva e disponibile solo nell\'app mobile. Qui puoi vedere la lista dei tecnici.'}
+          La mappa interattiva e disponibile solo nell'app mobile. Qui puoi vedere la lista dei tecnici.
         </Text>
       </View>
     );
@@ -212,7 +210,7 @@ export function TechnicianMap({
       <MapComponent
         ref={mapRef}
         style={styles.map}
-        provider={undefined}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={initialRegion || ITALY_REGION}
         onMapReady={handleMapReady}
         showsUserLocation

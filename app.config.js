@@ -1,3 +1,9 @@
+const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_API_KEY;
+
+if (!googleMapsApiKey) {
+  throw new Error('EXPO_PUBLIC_GOOGLE_MAPS_API_KEY is required for Android builds. Configure it in EAS Dashboard as Plaintext.');
+}
+
 export default ({ config }) => {
   return {
     ...config,
@@ -21,6 +27,11 @@ export default ({ config }) => {
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
       ],
+      config: {
+        googleMaps: {
+          apiKey: googleMapsApiKey
+        }
+      }
     },
     
     web: {
