@@ -1,9 +1,3 @@
-const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_API_KEY;
-
-if (!googleMapsApiKey) {
-  console.warn('WARNING: Google Maps API key is missing. Map features will not work on Android.');
-}
-
 export default ({ config }) => {
   return {
     ...config,
@@ -27,11 +21,6 @@ export default ({ config }) => {
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
       ],
-      config: {
-        googleMaps: {
-          apiKey: googleMapsApiKey
-        }
-      }
     },
     
     web: {

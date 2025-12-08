@@ -7,7 +7,7 @@ import {
   Platform,
   Pressable,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE, Callout } from 'react-native-maps';
+import MapView, { Marker, Callout } from 'react-native-maps';
 import ClusteredMapView from 'react-native-map-clustering';
 import { Feather } from '@expo/vector-icons';
 import { Colors, Spacing, BorderRadius } from '../constants/theme';
