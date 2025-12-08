@@ -181,12 +181,14 @@ export function TechnicianMap({
     );
   }, [colors.primary]);
 
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || Platform.OS === 'android') {
     return (
       <View style={[styles.webNotice, { backgroundColor: colors.primaryLight }]}>
         <Feather name="info" size={16} color={colors.primary} />
         <Text style={[styles.webNoticeText, { color: colors.primary }]}>
-          La mappa interattiva e disponibile solo nell'app mobile. Qui puoi vedere la lista dei tecnici.
+          {Platform.OS === 'android' 
+            ? 'La mappa richiede configurazione Google Maps. Usa la lista tecnici qui sotto.'
+            : 'La mappa interattiva e disponibile solo nell\'app mobile. Qui puoi vedere la lista dei tecnici.'}
         </Text>
       </View>
     );
