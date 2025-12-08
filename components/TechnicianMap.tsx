@@ -210,7 +210,7 @@ export function TechnicianMap({
       <MapComponent
         ref={mapRef}
         style={styles.map}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+        provider={undefined}
         initialRegion={initialRegion || ITALY_REGION}
         onMapReady={handleMapReady}
         showsUserLocation
